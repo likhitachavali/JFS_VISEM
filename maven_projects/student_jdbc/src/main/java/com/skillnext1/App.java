@@ -14,7 +14,8 @@ public class App {
             System.out.println("2. Update Student");
             System.out.println("3. Delete Student");
             System.out.println("4. Display All Students");
-            System.out.println("5. Exit");
+	    System.out.println("5. Count Students by Branch");
+            System.out.println("6. Exit");
             System.out.print("Enter your choice: ");
             int choice = sc.nextInt();
             sc.nextLine(); // consume newline
@@ -62,8 +63,12 @@ public class App {
                             System.out.println(s);
                         }
                         break;
+ 
+		    case 5:
+   			 dao.countStudentsByBranch();
+   			 break;
 
-                    case 5:
+                    case 6:
                         System.out.println("Exiting...");
                         sc.close();
                         System.exit(0);

@@ -1,105 +1,131 @@
 package com.skillnext1;
 
 import java.sql.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 public class StudentDAO {
 
-    private Connection getConnection() throws Exception {
-        String url = "jdbc:mysql://localhost:3306/student_db";
-        String username = "root";
-        String password = "4321";  
-        return DriverManager.getConnection(url, username, password);
-    }
+    // JDBC connection method inside DAO
+    private Connection getConnection() throws SQLException {
+        String URL = "jdbc:mysql://localhost:3306/student_db"; 
+        String USER = "root";       
+        String PASSWORD = "4321";   
 
-    // Check if student exists by ID
-    public boolean exists(int id) throws Exception {
-        Connection con = getConnection();
-        String sql = "SELECT id FROM student WHERE id=?";
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, id);
-        ResultSet rs = ps.executeQuery();
-        boolean present = rs.next();
-        con.close();
-        return present;
-    }
-
-    // Insert a student
-    public void insertStudent(Student s) throws Exception {
-        if (exists(s.getId())) {
-            System.out.println("Student with ID " + s.getId() + " already exists!");
-            return;
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver"); 
+        } catch (ClassNotFoundException e) {
+            System.out.println("MySQL Driver not found: " + e.getMessage());
         }
 
-        Connection con = getConnection();
-        String sql = "INSERT INTO student(id, name, sem, dept) VALUES(?, ?, ?, ?)";
-        PreparedStatement ps = con.prepareStatement(sql);
-
-        ps.setInt(1, s.getId());
-        ps.setString(2, s.getName());
-        ps.setInt(3, s.getSem());
-        ps.setString(4, s.getDept());
-
-        ps.executeUpdate();
-        con.close();
-        System.out.println("Student inserted successfully!");
+        return DriverManager.getConnection(URL, USER, PASSWORD);
     }
 
-    // Update a student
-    public void updateStudent(Student s) throws Exception {
-        if (!exists(s.getId())) {
-            System.out.println("Student with ID " + s.getId() + " does not exist!");
-            return;
+    // Insert Student
+    public void insertStudent(Student student) {
+        String query = "INSERT INTO student(id, name, dept, sem) VALUES (?, ?, ?, ?)";
+        try (Connection con = getConnection();
+             PreparedStatement pst = con.prepareStatement(query)) {
+
+            pst.setInt(1, student.getId());
+            pst.setString(2, student.getName());
+            pst.setString(3, student.getDept()); // dept column
+            pst.setInt(4, student.getSem());
+
+            int rows = pst.executeUpdate();
+            if (rows > 0) {
+                System.out.println("Student inserted successfully.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error inserting student: " + e.getMessage());
         }
-
-        Connection con = getConnection();
-        String sql = "UPDATE student SET name=?, sem=?, dept=? WHERE id=?";
-        PreparedStatement ps = con.prepareStatement(sql);
-
-        ps.setString(1, s.getName());
-        ps.setInt(2, s.getSem());
-        ps.setString(3, s.getDept());
-        ps.setInt(4, s.getId());
-
-        ps.executeUpdate();
-        con.close();
-        System.out.println("Student updated successfully!");
     }
 
-    // Delete a student
-    public void deleteStudent(int id) throws Exception {
-        if (!exists(id)) {
-            System.out.println("Student with ID " + id + " does not exist!");
-            return;
+    // Update Student
+    public void updateStudent(Student student) {
+        String query = "UPDATE student SET name=?, dept=?, sem=? WHERE id=?";
+        try (Connection con = getConnection();
+             PreparedStatement pst = con.prepareStatement(query)) {
+
+            pst.setString(1, student.getName());
+            pst.setString(2, student.getDept());
+            pst.setInt(3, student.getSem());
+            pst.setInt(4, student.getId());
+
+            int rows = pst.executeUpdate();
+            if (rows > 0) {
+                System.out.println("Student updated successfully.");
+            } else {
+                System.out.println("No student found with ID " + student.getId());
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error updating student: " + e.getMessage());
         }
-
-        Connection con = getConnection();
-        String sql = "DELETE FROM student WHERE id=?";
-        PreparedStatement ps = con.prepareStatement(sql);
-        ps.setInt(1, id);
-        ps.executeUpdate();
-        con.close();
-        System.out.println("Student deleted successfully!");
     }
 
-    // Get all students
-    public List<Student> getAllStudents() throws Exception {
-        Connection con = getConnection();
-        String sql = "SELECT * FROM student";
-        Statement stmt = con.createStatement();
-        ResultSet rs = stmt.executeQuery(sql);
+    // Delete Student
+    public void deleteStudent(int id) {
+        String query = "DELETE FROM student WHERE id=?";
+        try (Connection con = getConnection();
+             PreparedStatement pst = con.prepareStatement(query)) {
 
+            pst.setInt(1, id);
+
+            int rows = pst.executeUpdate();
+            if (rows > 0) {
+                System.out.println("Student deleted successfully.");
+            } else {
+                System.out.println("No student found with ID " + id);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error deleting student: " + e.getMessage());
+        }
+    }
+
+    // Get All Students
+    public List<Student> getAllStudents() {
         List<Student> list = new ArrayList<>();
-        while (rs.next()) {
-            Student s = new Student();
-            s.setId(rs.getInt("id"));
-            s.setName(rs.getString("name"));
-            s.setSem(rs.getInt("sem"));
-            s.setDept(rs.getString("dept"));
-            list.add(s);
-        }
+        String query = "SELECT * FROM student";
+        try (Connection con = getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
 
-        con.close();
+            while (rs.next()) {
+                Student s = new Student(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("sem"),
+                        rs.getString("dept") // dept column
+                );
+                list.add(s);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error fetching students: " + e.getMessage());
+        }
         return list;
+    }
+
+    // Count Students by Department
+    public void countStudentsByBranch() {
+        String query = "SELECT dept, COUNT(*) AS count FROM student GROUP BY dept";
+        try (Connection con = getConnection();
+             Statement stmt = con.createStatement();
+             ResultSet rs = stmt.executeQuery(query)) {
+
+            System.out.println("\nDepartment\tCount");
+            System.out.println("----------------------");
+            while (rs.next()) {
+                String dept = rs.getString("dept");
+                int count = rs.getInt("count");
+                System.out.printf("%-15s %d\n", dept, count);
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error counting students by department: " + e.getMessage());
+        }
     }
 }
